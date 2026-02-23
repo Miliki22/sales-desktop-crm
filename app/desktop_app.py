@@ -5,11 +5,10 @@ from config import APP_NAME, WINDOW_MIN_WIDTH, WINDOW_MIN_HEIGHT, LOGO_PATH
 import tkinter as tk
 from tkinter import ttk
 from typing import Dict, Optional, Type
+from app.views.base_view import BaseView
 
 from PIL import Image, ImageTk
 
-from app.views.base_view import BaseView
-from app.views.login_view import LoginView
 from app.views.dashboard_view import DashboardView
 from app.views.importar_datos_view import ImportarDatosView
 from app.views import VentasView
@@ -122,7 +121,7 @@ class DesktopApp(tk.Tk):
         self._register_views()
 
         # Mostrar primera vista
-        self.show_view("login")
+        self.show_view("dashboard")
 
         # Mostrar la ventana principal (estaba withdraw)
         self.deiconify()
@@ -148,7 +147,6 @@ class DesktopApp(tk.Tk):
 
     def _register_views(self) -> None:
         """Registra todas las pantallas de la aplicación."""
-        self._install_view("login", LoginView)
         self._install_view("dashboard", DashboardView)
         self._install_view("importar", ImportarDatosView)
         self._install_view("ventas", VentasView)
@@ -170,7 +168,6 @@ class DesktopApp(tk.Tk):
 
         # Menú Vistas
         menu_vistas = tk.Menu(menubar, tearoff=0)
-        menu_vistas.add_command(label="Login", command=lambda: self.show_view("login"))
         menu_vistas.add_command(label="Dashboard", command=lambda: self.show_view("dashboard"))
         menu_vistas.add_command(label="Importar datos", command=lambda: self.show_view("importar"))
         menu_vistas.add_command(label="Ventas", command=lambda: self.show_view("ventas"))
@@ -249,7 +246,7 @@ class DesktopApp(tk.Tk):
 
         ttk.Label(
             frame,
-            text="Proyecto técnico Sales Desktop CRM / TSS Ciberseguridad",
+            text="Proyecto técnico Sales Desktop CRM (Portfolio)",
             font=("Segoe UI", 9, "italic"),
         ).pack(pady=(0, 15))
 
