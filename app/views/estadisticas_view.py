@@ -77,26 +77,60 @@ class EstadisticasView(BaseView):
         return canvas, ax
 
     def _annotate_bars(self, ax, bars, y_values) -> None:
-        """Anota valores arriba de las barras, ajustando el ylim de forma defensiva."""
-        if len(y_values) == 0:
+        """
+        Anota valores arriba de las barras.
+        - Formatea miles estilo AR (15.000)
+        - Muestra moneda delante ($15.000)
+        - Ajusta ylim dinámicamente
+        - Soporta números o strings ya formateados
+        """
+
+        if y_values is None:
             return
 
-        ymax = float(max(y_values))
-        ylim_max = max(ymax * 1.25, 1.0)
+        # Convertimos a lista sin romper si viene np.array / pd.Series
+        values = list(y_values)
+
+        if len(values) == 0:
+            return
+
+        # Detectar valores numéricos reales para calcular límites
+        numeric_vals = []
+        for v in values:
+            try:
+                numeric_vals.append(float(v))
+            except Exception:
+                numeric_vals.append(0.0)
+        
+        ymax = max(numeric_vals) if numeric_vals else 0.0
+        ylim_max = max(ymax * 1.20, 1.0)
         ax.set_ylim(0, ylim_max)
 
         offset = ylim_max * 0.03
-        for i, bar in enumerate(bars):
-            valor = float(y_values[i])
+
+        def format_number(v: float) -> str:
+            formatted = f"{int(round(v)):,}".replace(",", ".")
+            return f"{CURRENCY_SYMBOL}{formatted}"
+
+        for bar, raw_val in zip(bars, values):
+            height = bar.get_height()
+
+            if isinstance(raw_val, str):
+                label = raw_val
+            else:
+                try:
+                    label = format_number(float(raw_val))
+                except Exception:
+                    label = str(raw_val)
             ax.text(
                 bar.get_x() + bar.get_width() / 2,
-                valor + offset,
-                f"{valor:,.0f} {CURRENCY_SYMBOL}",
+                height + offset,
+                label,
                 ha="center",
                 va="bottom",
                 fontsize=9,
-            )
-
+                clip_on=True,
+          )
     # ==== API pública ====
 
     def refresh(self) -> None:
@@ -175,47 +209,51 @@ class EstadisticasView(BaseView):
             )
             return
 
-        # ========== Gráfico 2: Ventas por producto (barras) ==========
+        # ========== Gráfico 2: Ventas por producto (Top N) ==========
         try:
-            series_por_producto = df.groupby("producto")["importe"].sum()
+            df_prod = df.copy()
+            df_prod["producto"] = df_prod["producto"].astype(str).str.strip()
 
-            orden = [
-                "Curso básico de trading",
-                "Curso medio de trading",
-                "Curso avanzado de trading",
-            ]
-            series_top = series_por_producto.reindex(orden).dropna()
+            series_por_producto = (
+                df_prod.groupby("producto")["importe"]
+                .sum()
+                .sort_values(ascending=False)
+            )
 
-            canvas_prod, ax_prod = self._add_chart(right, "Total ventas por curso")
+            if series_por_producto.empty:
+                canvas_prod, ax_prod = self._add_chart(right, "Total ventas por producto")
+                ax_prod.text(
+                    0.5, 0.5, "Sin datos de producto para graficar",
+                    ha="center", va="center", transform=ax_prod.transAxes
+                )
+                ax_prod.set_axis_off()
+                canvas_prod.draw()
+            else:
+                TOP_N = 10  # ajustable
+                series_top = series_por_producto.head(TOP_N)
 
-            x = list(range(len(series_top)))
-            y = series_top.values
+                canvas_prod, ax_prod = self._add_chart(right, "Total ventas por producto (Top 10)")
 
-            bars = ax_prod.bar(x, y)
+                x = list(range(len(series_top)))
+                y = series_top.values
+                bars = ax_prod.bar(x, y)
 
-            label_map = {
-                "Curso básico de trading": "Básico",
-                "Curso medio de trading": "Medio",
-                "Curso avanzado de trading": "Avanzado",
-            }
-            etiquetas = [label_map.get(name, name) for name in series_top.index]
+                ax_prod.set_xticks(x)
+                ax_prod.set_xticklabels(series_top.index.tolist(), rotation=25, ha="right")
+                ax_prod.set_xlabel("Producto")
+                ax_prod.set_ylabel("Importe")
+                ax_prod.grid(axis="y", linestyle="--", alpha=0.4)
 
-            ax_prod.set_xticks(x)
-            ax_prod.set_xticklabels(etiquetas, rotation=0)
-            ax_prod.set_xlabel("Producto")
-            ax_prod.set_ylabel("Importe")
-            ax_prod.grid(axis="y", linestyle="--", alpha=0.4)
+                # Etiquetas más lindas (15.000 en vez de 15000)
+                y_labels = [f"{int(v):,}".replace(",", ".") for v in y]
+                self._annotate_bars(ax_prod, bars, y_labels)
 
-            self._annotate_bars(ax_prod, bars, y)
-
-            canvas_prod.figure.tight_layout()
-            canvas_prod.draw()
+                canvas_prod.figure.tight_layout()
+                canvas_prod.draw()
 
         except Exception as e:
             messagebox.showerror(
                 "Error al generar gráfica de productos",
                 f"Ocurrió un error al generar la gráfica por productos:\n\n{e}",
-            )
+          )
             return
-
-        self.app.set_status("Gráficas de estadísticas actualizadas.")

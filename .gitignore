@@ -10,3 +10,5 @@ venv/
 # OS / Editor
 .DS_Store
 .vscode/
+
+data/output/clientes.csv
