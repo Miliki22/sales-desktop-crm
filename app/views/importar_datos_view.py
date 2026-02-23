@@ -1,6 +1,7 @@
 from __future__ import annotations
 from config import PREVIEW_ROWS
 import pandas as pd
+from pathlib import Path
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
@@ -48,6 +49,12 @@ class ImportarDatosView(BaseView):
 
         ttk.Button(
             layout,
+            text="Cargar demo",
+            command=self._cargar_demo,
+        ).grid(row=2, column=1, pady=(20, 0), padx=10)
+
+        ttk.Button(
+            layout,
             text="Importar a base de datos",
             command=self._importar,
         ).grid(row=2, column=2, pady=(20, 0), padx=10, sticky="e")
@@ -65,6 +72,25 @@ class ImportarDatosView(BaseView):
             self.entry_path.delete(0, tk.END)
             self.entry_path.insert(0, filepath)
             self.app.set_status(f"Archivo seleccionado: {filepath}")
+
+    def _cargar_demo(self) -> None:
+        """Carga rápida: setea en el input el CSV demo del repo."""
+        demo_path = Path(__file__).resolve().parents[2] / "data" / "sample" / "ventas_demo.csv"
+
+        if not demo_path.exists():
+            messagebox.showerror(
+                "Demo no encontrada",
+                f"No se encontró el archivo demo en:\n{demo_path}",
+            )
+            self.app.set_status("No se encontró ventas_demo.csv")
+            return
+
+        self.entry_path.delete(0, tk.END)
+        self.entry_path.insert(0, str(demo_path))
+        self.app.set_status("Demo cargada: ventas_demo.csv")
+
+        # Opcional PRO: abrir preview automático
+        # self._previsualizar()
 
     def _previsualizar(self) -> None:
         """Carga el archivo y muestra las primeras filas SIN tocar la base interna."""
