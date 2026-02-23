@@ -2,6 +2,7 @@ from __future__ import annotations
 from config import PREVIEW_ROWS
 import pandas as pd
 from pathlib import Path
+from .data_table_dialog import show_data_table_dialog
 
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox
@@ -46,6 +47,12 @@ class ImportarDatosView(BaseView):
             text="Previsualizar",
             command=self._previsualizar,
         ).grid(row=2, column=0, columnspan=1, pady=(20, 0), padx=10, sticky="w")
+
+        ttk.Button(
+           layout,
+           text="Ver datos (tabla)",
+           command=self._ver_datos,
+        ).grid(row=2, column=1, pady=(20, 0), padx=10, sticky="w")
 
         ttk.Button(
             layout,
@@ -173,4 +180,17 @@ class ImportarDatosView(BaseView):
                 f"Ocurrió un error no esperado al importar:\n\n{e}",
             )
             self.app.set_status("Error inesperado al importar datos.")
+
+    def _ver_datos(self) -> None:
+        """Muestra una tabla con TODO el dataset cargado en memoria."""
+        df = self.app.repository.get_all_sales()
+
+        if df is None or df.empty:
+            messagebox.showwarning(
+                "Sin datos",
+                "Todavía no hay datos cargados.\n\nPrimero importá un CSV o usá 'Cargar demo'.",
+            )
+            return
+
+        show_data_table_dialog(self, df, title="Ventas importadas (tabla completa)")
     
