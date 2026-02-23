@@ -1,0 +1,21 @@
+id,fecha,hora,producto,cliente,importe
+1,2026-01-03,09:14:22,Curso Python,Cliente 001,15000
+2,2026-01-03,10:05:11,Curso Python,Cliente 002,15000
+3,2026-01-04,11:22:40,Membresía Pro,Cliente 003,22000
+4,2026-01-05,13:48:05,Plantilla Excel,Cliente 004,6500
+5,2026-01-05,15:11:33,Membresía Pro,Cliente 005,22000
+6,2026-01-06,09:02:10,Curso Python,Cliente 006,15000
+7,2026-01-06,18:44:51,Plantilla Excel,Cliente 002,6500
+8,2026-01-07,12:30:05,Asesoría 1:1,Cliente 007,30000
+9,2026-01-07,16:05:18,Curso Python,Cliente 003,15000
+10,2026-01-08,10:45:00,Membresía Pro,Cliente 008,22000
+11,2026-01-08,14:12:44,Plantilla Excel,Cliente 009,6500
+12,2026-01-09,09:33:21,Asesoría 1:1,Cliente 010,30000
+13,2026-01-09,11:19:06,Curso Python,Cliente 011,15000
+14,2026-01-10,17:55:12,Membresía Pro,Cliente 012,22000
+15,2026-01-10,19:02:41,Plantilla Excel,Cliente 001,6500
+16,2026-01-11,10:10:10,Curso Python,Cliente 013,15000
+17,2026-01-11,12:40:59,Asesoría 1:1,Cliente 014,30000
+18,2026-01-12,09:05:45,Membresía Pro,Cliente 015,22000
+19,2026-01-12,13:25:30,Plantilla Excel,Cliente 016,6500
+20,2026-01-13,18:11:08,Curso Python,Cliente 017,15000
