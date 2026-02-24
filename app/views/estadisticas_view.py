@@ -29,10 +29,9 @@ class EstadisticasView(BaseView):
         # Botón de actualización
         controls = ttk.Frame(self)
         controls.pack(fill="x", padx=10, pady=(0, 10))
-
         ttk.Button(controls, text="Actualizar gráficas", command=self.refresh).pack(side="left")
 
-        # Mensaje guía (arriba, antes de los charts)
+        # Mensaje guía
         ttk.Label(
             self,
             text=(
@@ -45,9 +44,8 @@ class EstadisticasView(BaseView):
         self.charts_frame = ttk.Frame(self)
         self.charts_frame.pack(fill="both", expand=True, padx=10, pady=10)
 
-        # Grid para 2 gráficos lado a lado
+        # Un solo gráfico (full width)
         self.charts_frame.columnconfigure(0, weight=1)
-        self.charts_frame.columnconfigure(1, weight=1)
         self.charts_frame.rowconfigure(0, weight=1)
 
         self.refresh()
@@ -65,7 +63,8 @@ class EstadisticasView(BaseView):
 
     def _add_chart(self, parent: tk.Widget, title: str) -> tuple[FigureCanvasTkAgg, any]:
         """Crea un Figure + Canvas Tkinter dentro de parent y devuelve (canvas, ax)."""
-        fig = Figure(figsize=(5, 3), dpi=100)
+        # un poco más grande para que se vea “pro”
+        fig = Figure(figsize=(7.5, 4.2), dpi=100)
         ax = fig.add_subplot(111)
         ax.set_title(title)
 
@@ -82,26 +81,26 @@ class EstadisticasView(BaseView):
         - Formatea miles estilo AR (15.000)
         - Muestra moneda delante ($15.000)
         - Ajusta ylim dinámicamente
-        - Soporta números o strings ya formateados
+        - Robusto (no rompe si viene Series/np.array)
         """
-
         if y_values is None:
             return
 
-        # Convertimos a lista sin romper si viene np.array / pd.Series
         values = list(y_values)
-
-        if len(values) == 0:
+        if not values:
             return
 
-        # Detectar valores numéricos reales para calcular límites
-        numeric_vals = []
+        # Convertimos a float defensivo para cálculos
+        numeric_vals: list[float] = []
         for v in values:
             try:
-                numeric_vals.append(float(v))
+                fv = float(v)
+                if fv != fv:  # NaN
+                    fv = 0.0
+                numeric_vals.append(fv)
             except Exception:
                 numeric_vals.append(0.0)
-        
+
         ymax = max(numeric_vals) if numeric_vals else 0.0
         ylim_max = max(ymax * 1.20, 1.0)
         ax.set_ylim(0, ylim_max)
@@ -109,28 +108,27 @@ class EstadisticasView(BaseView):
         offset = ylim_max * 0.03
 
         def format_number(v: float) -> str:
+            # miles con punto y sin decimales
             formatted = f"{int(round(v)):,}".replace(",", ".")
             return f"{CURRENCY_SYMBOL}{formatted}"
 
-        for bar, raw_val in zip(bars, values):
-            height = bar.get_height()
+        for bar, raw_val, valor in zip(bars, values, numeric_vals):
+            if valor <= 0:
+                continue
 
-            if isinstance(raw_val, str):
-                label = raw_val
-            else:
-                try:
-                    label = format_number(float(raw_val))
-                except Exception:
-                    label = str(raw_val)
+            # Si ya viene string, lo respetamos; si no, formateamos
+            label = raw_val if isinstance(raw_val, str) else format_number(valor)
+
             ax.text(
                 bar.get_x() + bar.get_width() / 2,
-                height + offset,
+                valor + offset,
                 label,
                 ha="center",
                 va="bottom",
-                fontsize=9,
-                clip_on=True,
-          )
+                fontsize=10,
+                clip_on=False,
+            )
+
     # ==== API pública ====
 
     def refresh(self) -> None:
@@ -146,12 +144,11 @@ class EstadisticasView(BaseView):
         if not required_cols.issubset(df.columns):
             messagebox.showerror(
                 "Datos incompletos",
-                "No se encontraron las columnas necesarias "
-                "('fecha', 'producto', 'importe') en el dataset.",
+                "No se encontraron las columnas necesarias ('fecha', 'producto', 'importe') en el dataset.",
             )
             return
 
-        # Aseguramos tipos
+        # Tipos y limpieza
         df = df.copy()
         df["importe"] = pd.to_numeric(df["importe"], errors="coerce")
         df = df.dropna(subset=["importe"])
@@ -164,96 +161,50 @@ class EstadisticasView(BaseView):
             self.app.set_status("No hay importes válidos para estadísticas.")
             return
 
-        # ====== Layout: 2 charts lado a lado ======
-        left = ttk.LabelFrame(self.charts_frame, text="Ventas por día")
-        left.grid(row=0, column=0, sticky="nsew", padx=(0, 8), pady=0)
+        # ====== Layout: 1 chart (full width) ======
+        self.charts_frame.columnconfigure(0, weight=1)
+        self.charts_frame.rowconfigure(0, weight=1)
 
-        right = ttk.LabelFrame(self.charts_frame, text="Cursos trading - Total ventas")
-        right.grid(row=0, column=1, sticky="nsew", padx=(8, 0), pady=0)
+        frame = ttk.LabelFrame(self.charts_frame, text="Total ventas por producto")
+        frame.grid(row=0, column=0, sticky="nsew", padx=10, pady=0)
 
-        # ========== Gráfico 1: Ventas por día (barras) ==========
         try:
-            df_fechas = df.copy()
-            df_fechas["fecha"] = pd.to_datetime(df_fechas["fecha"], errors="coerce")
-            df_fechas = df_fechas.dropna(subset=["fecha"])
-            df_fechas["fecha_dia"] = df_fechas["fecha"].dt.date
-
-            series_por_dia = df_fechas.groupby("fecha_dia")["importe"].sum().sort_index()
-            if series_por_dia.empty:
-                messagebox.showinfo("No hay fechas válidas para graficar por día.")
-                return
-
-            canvas_fecha, ax_fecha = self._add_chart(left, "Ventas por día")
-
-            x = list(range(len(series_por_dia)))
-            y = series_por_dia.values
-
-            bars = ax_fecha.bar(x, y)
-            labels = [pd.to_datetime(d).strftime("%d-%m-%Y") for d in series_por_dia.index]
-
-            ax_fecha.set_xticks(x)
-            ax_fecha.set_xticklabels(labels, rotation=30, ha="right")
-            ax_fecha.set_xlabel("Fecha")
-            ax_fecha.set_ylabel("Importe")
-            ax_fecha.grid(axis="y", linestyle="--", alpha=0.4)
-
-            self._annotate_bars(ax_fecha, bars, y)
-
-            canvas_fecha.figure.tight_layout()
-            canvas_fecha.draw()
-
-        except Exception as e:
-            messagebox.showerror(
-                "Error al generar gráfica de fechas",
-                f"Ocurrió un error al generar la gráfica por fechas:\n\n{e}",
-            )
-            return
-
-        # ========== Gráfico 2: Ventas por producto (Top N) ==========
-        try:
-            df_prod = df.copy()
-            df_prod["producto"] = df_prod["producto"].astype(str).str.strip()
-
             series_por_producto = (
-                df_prod.groupby("producto")["importe"]
+                df.groupby("producto")["importe"]
                 .sum()
                 .sort_values(ascending=False)
+                .head(10)
             )
 
             if series_por_producto.empty:
-                canvas_prod, ax_prod = self._add_chart(right, "Total ventas por producto")
-                ax_prod.text(
-                    0.5, 0.5, "Sin datos de producto para graficar",
-                    ha="center", va="center", transform=ax_prod.transAxes
-                )
-                ax_prod.set_axis_off()
-                canvas_prod.draw()
-            else:
-                TOP_N = 10  # ajustable
-                series_top = series_por_producto.head(TOP_N)
+                self.app.set_status("No hay productos para graficar.")
+                return
 
-                canvas_prod, ax_prod = self._add_chart(right, "Total ventas por producto (Top 10)")
+            canvas, ax = self._add_chart(frame, "Total ventas por producto (Top 10)")
 
-                x = list(range(len(series_top)))
-                y = series_top.values
-                bars = ax_prod.bar(x, y)
+            x = list(range(len(series_por_producto)))
+            y = series_por_producto.values
+            bars = ax.bar(x, y)
 
-                ax_prod.set_xticks(x)
-                ax_prod.set_xticklabels(series_top.index.tolist(), rotation=25, ha="right")
-                ax_prod.set_xlabel("Producto")
-                ax_prod.set_ylabel("Importe")
-                ax_prod.grid(axis="y", linestyle="--", alpha=0.4)
+            etiquetas = [str(p) for p in series_por_producto.index]
+            ax.set_xticks(x)
+            ax.set_xticklabels(etiquetas, rotation=25, ha="right")
 
-                # Etiquetas más lindas (15.000 en vez de 15000)
-                y_labels = [f"{int(v):,}".replace(",", ".") for v in y]
-                self._annotate_bars(ax_prod, bars, y_labels)
+            ax.set_xlabel("Producto")
+            ax.set_ylabel("Importe")
+            ax.grid(axis="y", linestyle="--", alpha=0.4)
 
-                canvas_prod.figure.tight_layout()
-                canvas_prod.draw()
+            self._annotate_bars(ax, bars, y)
+
+            canvas.figure.tight_layout()
+            canvas.draw()
+
+            self.app.set_status("Gráfica de estadísticas actualizada.")
 
         except Exception as e:
             messagebox.showerror(
                 "Error al generar gráfica de productos",
                 f"Ocurrió un error al generar la gráfica por productos:\n\n{e}",
-          )
+            )
+            self.app.set_status("Error al generar gráfica.")
             return
