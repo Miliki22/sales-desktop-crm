@@ -23,7 +23,7 @@ ejecutar la aplicación y entender el alcance del testing del core.
 ## Estructura del Core
 
 El núcleo de la aplicación se encuentra en:
-app/core
+`app/core`
 
 Contiene tres componentes principales:
 
@@ -71,11 +71,11 @@ Es el **punto único de verdad** del estado de la aplicación.
 ### 1. Crear y activar entorno virtual
 
 ```bash
-python -m venv venv
+python3 -m venv venv
 source venv/bin/activate
 ```
 
-### Instalar dependencias
+### 2. Instalar dependencias
 
 ```bash
 pip install -r requirements.txt
@@ -83,7 +83,7 @@ pip install -r requirements.txt
 
 ### 3. Ejecutar la aplicación
 ```bash
-python main.py
+python3 main.py
 ```
 
 ## Testing del Core
@@ -116,11 +116,17 @@ Los tests están implementados con **pytest** y cubren exclusivamente la lógica
 Desde la raíz del proyecto:
 
 ```bash
-python -m pytest
+python3 -m pytest
 ```
 
 O para ejecutar solo los tests del core:
 
 ```bash
-python -m pytest tests/core
+python3 -m pytest tests/core
 ```
+## Estado del Proyecto
+
+- Arquitectura modular basada en separación UI / Core
+- Core completamente testeado (pytest)
+- Interfaz gráfica desacoplada de la lógica de negocio
+- Preparado para futura migración a base de datos real
